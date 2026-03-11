@@ -52,6 +52,24 @@ def analyze_with_groq(title, game):
         print(f"[Groq] 分析失敗：{e}，回應：{resp_text}")
         return None
 
+def get_post_content(link):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'cookie': 'over18=1',
+    }
+    try:
+        res = requests.get(link, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        content_el = soup.select_one('#main-content')
+        if not content_el:
+            return ""
+        # 移除引用、簽名檔
+        for tag in content_el.select('.push, .article-metaline, .article-metaline-right'):
+            tag.decompose()
+        return content_el.get_text()
+    except Exception:
+        return ""
+
 def get_ptt_posts(board):
     url = f"https://www.ptt.cc/bbs/{board}/index.html"
     headers = {
@@ -120,12 +138,20 @@ def check_board(board, cfg, state):
 
         # nb-shopping：價格篩選 + AI 分析
         elif board == 'nb-shopping':
+            if not link:
+                continue
             min_p = cfg.get('min_price', 3000)
             max_p = cfg.get('max_price', 10000)
-            # 只抓 4~6 位純數字，排除緊接英文字母的型號（如 9750H、4800U、RTX3060）
-            prices = re.findall(r'(?<![a-zA-Z\d])(\d{4,6})(?![a-zA-Z\d])', title)
             print(f"  標題：{title}")
-            print(f"  抓到數字：{prices}")
+
+            # 先從標題找，找不到再進文章內文
+            prices = re.findall(r'(?<![a-zA-Z\d])(\d{4,6})(?![a-zA-Z\d])', title)
+            content = ""
+            if not any(min_p < int(p) <= max_p for p in prices):
+                content = get_post_content(link)
+                prices = re.findall(r'(?<![a-zA-Z\d])(\d{4,6})(?![a-zA-Z\d])', content)
+
+            print(f"  抓到數字：{prices[:10]}")
             matched = False
             for p in prices:
                 if min_p < int(p) <= max_p:
@@ -133,7 +159,8 @@ def check_board(board, cfg, state):
                     print(f"  價格符合：{p}")
                     ai_result = ""
                     if cfg.get('analyze_with_claude') and cfg.get('game'):
-                        result = analyze_with_groq(title, cfg['game'])
+                        context = f"{title}\n{content[:300]}" if content else title
+                        result = analyze_with_groq(context, cfg['game'])
                         if result:
                             ai_result = f"\n🤖 AI 分析：{result}"
                     msg = f"【PTT 筆電】發現低價筆電！\n{title}\n{link}{ai_result}"
