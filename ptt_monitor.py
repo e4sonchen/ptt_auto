@@ -27,6 +27,7 @@ def send_telegram(message):
 
 def analyze_with_gemini(title, game):
     if not GEMINI_API_KEY:
+        print("[Gemini] 未設定 GEMINI_API_KEY，跳過分析")
         return None
     prompt = (
         f"以下是一篇 PTT 筆電販售文章標題：\n「{title}」\n\n"
@@ -35,11 +36,14 @@ def analyze_with_gemini(title, game):
     )
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
     body = {"contents": [{"parts": [{"text": prompt}]}]}
-    res = requests.post(url, json=body)
-    data = res.json()
     try:
-        return data['candidates'][0]['content']['parts'][0]['text'].strip()
-    except (KeyError, IndexError):
+        res = requests.post(url, json=body, timeout=15)
+        data = res.json()
+        result = data['candidates'][0]['content']['parts'][0]['text'].strip()
+        print(f"[Gemini] 分析完成")
+        return result
+    except Exception as e:
+        print(f"[Gemini] 分析失敗：{e}，回應：{res.text[:200] if 'res' in dir() else '無'}")
         return None
 
 def get_ptt_posts(board):
@@ -108,12 +112,12 @@ def check_board(board, cfg, state):
             prices = re.findall(r'\d+', title)
             for p in prices:
                 if min_p < int(p) <= max_p:
-                    claude_result = ""
+                    gemini_result = ""
                     if cfg.get('analyze_with_claude') and cfg.get('game'):
                         result = analyze_with_gemini(title, cfg['game'])
                         if result:
-                            claude_result = f"\n🤖 Claude 分析：{result}"
-                    msg = f"【PTT 筆電】發現低價筆電！\n{title}\n{link}{claude_result}"
+                            gemini_result = f"\n🤖 Gemini 分析：{result}"
+                    msg = f"【PTT 筆電】發現低價筆電！\n{title}\n{link}{gemini_result}"
                     print(msg)
                     send_telegram(msg)
                     break
