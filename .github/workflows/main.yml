@@ -1,9 +1,7 @@
 name: PTT Monitor
 
 on:
-  schedule:
-    - cron: '0 * * * *'  # 每小時執行一次 (UTC 時間，12:00 UTC = 20:00 台北)
-  workflow_dispatch:       # 允許手動點擊按鈕執行
+  workflow_dispatch: # 手動點擊執行
 
 jobs:
   build:
@@ -23,3 +21,6 @@ jobs:
 
       - name: Run script
         run: python ptt_monitor.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
