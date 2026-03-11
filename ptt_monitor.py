@@ -118,23 +118,30 @@ def check_board(board, cfg, state):
                     print(msg)
                     send_telegram(msg)
 
-        # nb-shopping：價格篩選 + Claude 分析
+        # nb-shopping：價格篩選 + AI 分析
         elif board == 'nb-shopping':
             min_p = cfg.get('min_price', 3000)
             max_p = cfg.get('max_price', 10000)
             # 只抓 4~6 位純數字，排除緊接英文字母的型號（如 9750H、4800U、RTX3060）
             prices = re.findall(r'(?<![a-zA-Z\d])(\d{4,6})(?![a-zA-Z\d])', title)
+            print(f"  標題：{title}")
+            print(f"  抓到數字：{prices}")
+            matched = False
             for p in prices:
                 if min_p < int(p) <= max_p:
-                    gemini_result = ""
+                    matched = True
+                    print(f"  價格符合：{p}")
+                    ai_result = ""
                     if cfg.get('analyze_with_claude') and cfg.get('game'):
                         result = analyze_with_groq(title, cfg['game'])
                         if result:
-                            gemini_result = f"\n🤖 AI 分析：{result}"
-                    msg = f"【PTT 筆電】發現低價筆電！\n{title}\n{link}{gemini_result}"
+                            ai_result = f"\n🤖 AI 分析：{result}"
+                    msg = f"【PTT 筆電】發現低價筆電！\n{title}\n{link}{ai_result}"
                     print(msg)
                     send_telegram(msg)
                     break
+            if not matched:
+                print(f"  價格不符（需 {min_p}~{max_p}）")
 
 def analyze():
     config = load_json(CONFIG_FILE)
