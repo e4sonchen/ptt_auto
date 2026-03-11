@@ -3,11 +3,9 @@ from bs4 import BeautifulSoup
 import re
 import os
 import json
-import anthropic
-
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
-ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
 CONFIG_FILE = 'config.json'
 STATE_FILE = 'state.json'
@@ -27,21 +25,22 @@ def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     requests.post(url, data={'chat_id': TELEGRAM_CHAT_ID, 'text': message})
 
-def analyze_with_claude(title, game):
-    if not ANTHROPIC_API_KEY:
+def analyze_with_gemini(title, game):
+    if not GEMINI_API_KEY:
         return None
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     prompt = (
         f"以下是一篇 PTT 筆電販售文章標題：\n「{title}」\n\n"
         f"請根據標題中的規格資訊，簡短判斷這台電腦是否能順暢執行「{game}」。\n"
         f"回答格式：✅ 可以 或 ❌ 不建議，並用一句話說明原因。"
     )
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=150,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return message.content[0].text.strip()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+    body = {"contents": [{"parts": [{"text": prompt}]}]}
+    res = requests.post(url, json=body)
+    data = res.json()
+    try:
+        return data['candidates'][0]['content']['parts'][0]['text'].strip()
+    except (KeyError, IndexError):
+        return None
 
 def get_ptt_posts(board):
     url = f"https://www.ptt.cc/bbs/{board}/index.html"
@@ -111,7 +110,7 @@ def check_board(board, cfg, state):
                 if min_p < int(p) <= max_p:
                     claude_result = ""
                     if cfg.get('analyze_with_claude') and cfg.get('game'):
-                        result = analyze_with_claude(title, cfg['game'])
+                        result = analyze_with_gemini(title, cfg['game'])
                         if result:
                             claude_result = f"\n🤖 Claude 分析：{result}"
                     msg = f"【PTT 筆電】發現低價筆電！\n{title}\n{link}{claude_result}"
