@@ -2,8 +2,8 @@ name: PTT Monitor
 
 on:
   schedule:
-    - cron: '0 * * * *'  # 每小時執行一次
-  workflow_dispatch:       # 允許手動執行
+    - cron: '0 * * * *'  # 每小時執行一次 (UTC 時間，12:00 UTC = 20:00 台北)
+  workflow_dispatch:       # 允許手動點擊按鈕執行
 
 jobs:
   build:
