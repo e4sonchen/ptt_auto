@@ -5,7 +5,7 @@ import os
 import json
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
 CONFIG_FILE = 'config.json'
 STATE_FILE = 'state.json'
@@ -25,27 +25,31 @@ def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     requests.post(url, data={'chat_id': TELEGRAM_CHAT_ID, 'text': message})
 
-def analyze_with_gemini(title, game):
-    if not GEMINI_API_KEY:
-        print("[Gemini] 未設定 GEMINI_API_KEY，跳過分析")
+def analyze_with_groq(title, game):
+    if not GROQ_API_KEY:
+        print("[Groq] 未設定 GROQ_API_KEY，跳過分析")
         return None
     prompt = (
         f"以下是一篇 PTT 筆電販售文章標題：\n「{title}」\n\n"
-        f"請根據標題中的規格資訊，簡短判斷這台電腦是否能順暢執行「{game}」。\n"
+        f"請根據標題中的規格資訊，用繁體中文簡短判斷這台電腦是否能順暢執行「{game}」。\n"
         f"回答格式：✅ 可以 或 ❌ 不建議，並用一句話說明原因。"
     )
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
-    body = {"contents": [{"parts": [{"text": prompt}]}]}
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    body = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 150
+    }
     try:
-        res = requests.post(url, json=body, timeout=15)
-        print(f"[Gemini] HTTP {res.status_code}")
+        res = requests.post(url, json=body, headers={"Authorization": f"Bearer {GROQ_API_KEY}"}, timeout=15)
+        print(f"[Groq] HTTP {res.status_code}")
         data = res.json()
-        result = data['candidates'][0]['content']['parts'][0]['text'].strip()
-        print(f"[Gemini] 分析完成：{result[:80]}")
+        result = data['choices'][0]['message']['content'].strip()
+        print(f"[Groq] 分析完成：{result[:80]}")
         return result
     except Exception as e:
         resp_text = res.text[:300] if 'res' in dir() else '無'
-        print(f"[Gemini] 分析失敗：{e}，回應：{resp_text}")
+        print(f"[Groq] 分析失敗：{e}，回應：{resp_text}")
         return None
 
 def get_ptt_posts(board):
@@ -124,9 +128,9 @@ def check_board(board, cfg, state):
                 if min_p < int(p) <= max_p:
                     gemini_result = ""
                     if cfg.get('analyze_with_claude') and cfg.get('game'):
-                        result = analyze_with_gemini(title, cfg['game'])
+                        result = analyze_with_groq(title, cfg['game'])
                         if result:
-                            gemini_result = f"\n🤖 Gemini 分析：{result}"
+                            gemini_result = f"\n🤖 AI 分析：{result}"
                     msg = f"【PTT 筆電】發現低價筆電！\n{title}\n{link}{gemini_result}"
                     print(msg)
                     send_telegram(msg)
