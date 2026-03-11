@@ -38,12 +38,14 @@ def analyze_with_gemini(title, game):
     body = {"contents": [{"parts": [{"text": prompt}]}]}
     try:
         res = requests.post(url, json=body, timeout=15)
+        print(f"[Gemini] HTTP {res.status_code}")
         data = res.json()
         result = data['candidates'][0]['content']['parts'][0]['text'].strip()
-        print(f"[Gemini] 分析完成")
+        print(f"[Gemini] 分析完成：{result[:80]}")
         return result
     except Exception as e:
-        print(f"[Gemini] 分析失敗：{e}，回應：{res.text[:200] if 'res' in dir() else '無'}")
+        resp_text = res.text[:300] if 'res' in dir() else '無'
+        print(f"[Gemini] 分析失敗：{e}，回應：{resp_text}")
         return None
 
 def get_ptt_posts(board):
@@ -116,7 +118,8 @@ def check_board(board, cfg, state):
         elif board == 'nb-shopping':
             min_p = cfg.get('min_price', 3000)
             max_p = cfg.get('max_price', 10000)
-            prices = re.findall(r'\d+', title)
+            # 只抓 4~6 位純數字，排除緊接英文字母的型號（如 9750H、4800U、RTX3060）
+            prices = re.findall(r'(?<![a-zA-Z\d])(\d{4,6})(?![a-zA-Z\d])', title)
             for p in prices:
                 if min_p < int(p) <= max_p:
                     gemini_result = ""
