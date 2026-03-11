@@ -48,14 +48,21 @@ def analyze_with_gemini(title, game):
 
 def get_ptt_posts(board):
     url = f"https://www.ptt.cc/bbs/{board}/index.html"
-    headers = {'User-Agent': 'Mozilla/5.0', 'cookie': 'over18=1'}
-    try:
-        res = requests.get(url, headers=headers)
-        soup = BeautifulSoup(res.text, 'html.parser')
-        return soup.select('.r-ent')
-    except Exception as e:
-        print(f"Error fetching {board}: {e}")
-        return []
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'cookie': 'over18=1',
+        'Referer': 'https://www.ptt.cc/bbs/index.html',
+    }
+    for attempt in range(3):
+        try:
+            res = requests.get(url, headers=headers, timeout=15)
+            soup = BeautifulSoup(res.text, 'html.parser')
+            return soup.select('.r-ent')
+        except Exception as e:
+            print(f"Error fetching {board} (attempt {attempt+1}/3): {e}")
+            if attempt < 2:
+                import time; time.sleep(3)
+    return []
 
 def extract_post_id(post):
     a = post.select_one('a')
