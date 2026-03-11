@@ -144,12 +144,17 @@ def check_board(board, cfg, state):
             max_p = cfg.get('max_price', 10000)
             print(f"  標題：{title}")
 
+            def extract_prices(text):
+                # 先把 "8,500" 或 "8,000" 合併成 "8500"/"8000"，再抓數字
+                normalized = re.sub(r'(\d{1,3}),(\d{3})', r'\1\2', text)
+                return re.findall(r'(?<![a-zA-Z\d])(\d{4,6})(?![a-zA-Z\d])', normalized)
+
             # 先從標題找，找不到再進文章內文
-            prices = re.findall(r'(?<![a-zA-Z\d])(\d{4,6})(?![a-zA-Z\d])', title)
+            prices = extract_prices(title)
             content = ""
             if not any(min_p < int(p) <= max_p for p in prices):
                 content = get_post_content(link)
-                prices = re.findall(r'(?<![a-zA-Z\d])(\d{4,6})(?![a-zA-Z\d])', content)
+                prices = extract_prices(content)
 
             print(f"  抓到數字：{prices[:10]}")
             matched = False
