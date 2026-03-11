@@ -1,11 +1,16 @@
 name: PTT Monitor
 
 on:
-  workflow_dispatch: # 手動點擊執行
+  schedule:
+    - cron: '0 * * * *'  # 每小時執行，可自行修改（同步更新 config.json）
+  workflow_dispatch:       # 允許手動點擊執行
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write      # 允許寫回 state.json
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -16,11 +21,19 @@ jobs:
           python-version: '3.9'
 
       - name: Install dependencies
-        run: |
-          pip install requests beautifulsoup4
+        run: pip install requests beautifulsoup4 anthropic
 
       - name: Run script
         run: python ptt_monitor.py
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Save state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || git commit -m "Update state.json"
+          git push

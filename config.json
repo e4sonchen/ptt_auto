@@ -1,0 +1,17 @@
+{
+  "schedule_cron": "0 * * * *",
+  "schedule_description": "每小時執行一次，可修改 cron 表達式同時更新 .github/workflows/main.yml",
+  "boards": {
+    "bicycleshop": {
+      "enabled": true,
+      "keywords": ["XS"]
+    },
+    "nb-shopping": {
+      "enabled": true,
+      "min_price": 3000,
+      "max_price": 10000,
+      "analyze_with_claude": true,
+      "game": "魔物獵人 崛起 (Monster Hunter Rise)"
+    }
+  }
+}
